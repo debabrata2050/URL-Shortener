@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>d50.in - Simple URL Shortener</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Simple link emoji favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔗</text></svg>">
+</head>
+<body>
+<!-- Container is now the direct child of body, and centered by body's flex properties -->
+<div class="container">
+    <h1>Shorten Your Long URL</h1>
+    <p class="subtitle">Fast, simple, and reliable link shortening.</p>
+
+    <form id="shorten-form">
+        <div class="input-group">
+            <label for="longUrl">Enter Long URL:</label>
+            <input type="url" id="longUrl" placeholder="https://your-very-long-url.com/goes/here" required>
+        </div>
+
+        <div class="input-group">
+            <label for="customAlias">Custom Alias (Optional):</label>
+            <input type="text" id="customAlias" placeholder="e.g., my-awesome-link (max 10 chars)" maxlength="10" pattern="[a-zA-Z0-9-]{0,10}">
+            <small>Only letters, numbers, and hyphens allowed.</small>
+        </div>
+
+        <button type="submit" id="submit-button">Shorten</button>
+    </form>
+
+    <!-- Result Area -->
+    <div id="result-area" class="result-area" style="display: none;">
+        <h2>Your Shortened Link:</h2>
+        <div class="short-link-container">
+            <a id="shortUrl" href="#" target="_blank"></a>
+            <button id="copy-button" title="Copy to clipboard">
+                <!-- SVG icon for copy -->
+                <svg xmlns="http://www.w3.org/2000/svg" height="16" width="14" viewBox="0 0 448 512"><path fill="currentColor" d="M384 336H192c-8.8 0-16-7.2-16-16V64c0-8.8 7.2-16 16-16l140.1 0L400 115.9V320c0 8.8-7.2 16-16 16zM192 384H384c35.3 0 64-28.7 64-64V115.9c0-12.7-5.1-24.9-14.1-33.9L366.1 14.1c-9-9-21.2-14.1-33.9-14.1H192c-35.3 0-64 28.7-64 64V320c0 35.3 28.7 64 64 64zM64 128c-35.3 0-64 28.7-64 64V448c0 35.3 28.7 64 64 64H256c35.3 0 64-28.7 64-64V416H272v32c0 8.8-7.2 16-16 16H64c-8.8 0-16-7.2-16-16V192c0-8.8 7.2-16 16-16H96V128H64z"/></svg>
+            </button>
+        </div>
+        <p id="original-url-display" class="original-url"></p>
+    </div>
+
+    <!-- Error Area -->
+    <div id="error-area" class="error-area" style="display: none;">
+        <p id="error-message"></p>
+    </div>
+
+    <!-- Footer is NOW INSIDE the container -->
+    <footer>
+        <p>
+            Created with ❤️ by
+            <a href="https://github.com/debuonline" target="_blank" rel="noopener noreferrer">Debabrata Halder</a>
+        </p>
+    </footer>
+
+</div> <!-- End of .container -->
+
+
+<script src="script.js"></script>
+</body>
+</html>
