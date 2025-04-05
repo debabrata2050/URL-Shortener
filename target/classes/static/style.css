@@ -260,7 +260,57 @@ footer a:hover {
     text-decoration: underline;
 }
 
+@keyframes heartbeat {
+  0% {
+    transform: scale(1); /* Start at normal size */
+  }
+  25% {
+    transform: scale(1.3); /* Scale up (the "beat") */
+  }
+  50% {
+    transform: scale(1); /* Back to normal size */
+  }
+  75% {
+    transform: scale(1.3); /* Scale up again */
+  }
+  100% {
+    transform: scale(1); /* End at normal size */
+  }
+  /* Alternative simpler pulse:
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+  */
+}
 
+/* Apply the animation to the heart span within the footer */
+footer .heart {
+  color: red; /* Optional: Explicitly set color */
+  display: inline-block; /* Allows transform to work without breaking line */
+  animation-name: heartbeat;
+  animation-duration: 1.4s;        /* How long one cycle takes */
+  animation-timing-function: ease-in-out; /* Smooth start and end */
+  animation-iteration-count: infinite; /* Loop forever */
+  /* Adjust vertical alignment slightly if needed */
+   vertical-align: middle; /* Helps align the scaled emoji better */
+}
+
+/* === Wink (Wiggle) Animation === */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg) scale(1); } /* Start/end normal */
+  25% { transform: rotate(-8deg) scale(1.1); } /* Tilt left & slightly bigger */
+  75% { transform: rotate(8deg) scale(1.1); }  /* Tilt right & slightly bigger */
+}
+
+footer .wink {
+  display: inline-block; /* Allow transform */
+  animation-name: wiggle;
+  animation-duration: 1.2s; /* Adjust timing as desired */
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  vertical-align: middle; /* Align with text */
+  transform-origin: center center; /* Ensure rotation happens around the center */
+}
 /* Simple Responsive Adjustments */
 @media (max-width: 650px) {
     .container {
