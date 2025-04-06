@@ -110,29 +110,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
    function displaySuccess(data) {
-           // 1. Construct the FULL, clickable URL including the redirect path '/r/'
-           //    Example: http://localhost:8080 + /r/ + yourAlias => http://localhost:8080/r/yourAlias
-           const fullShortUrl = `${window.location.origin}${REDIRECT_PREFIX}${data.alias}`;
+       // --- Backend now provides the full short URL ---
+       // data should look like: { alias: "...", originalUrl: "...", shortUrl: "https://d50.in/r/..." }
 
-           // 2. Set the 'href' attribute of the link element to the full URL.
-           //    This ensures the link works correctly when clicked.
-           shortUrlLink.href = fullShortUrl;
+       const fullShortUrl = data.shortUrl; // Get the full URL from the response
+       const originalUrl = data.originalUrl;
 
-           // 3. Create the text to DISPLAY to the user.
-           //    Use the same full URL and remove the 'http://' or 'https://' prefix using regex.
-           //    Example: http://localhost:8080/r/yourAlias => localhost:8080/r/yourAlias
-           const displayUrlText = fullShortUrl.replace(/^https?:\/\//, '');
+       // 1. Set the clickable link href
+       shortUrlLink.href = fullShortUrl;
 
-           // 4. Set the visible text content of the link element to the modified text.
-           shortUrlLink.textContent = displayUrlText;
+       // 2. Set the displayed text (remove protocol for display)
+       shortUrlLink.textContent = fullShortUrl.replace(/^https?:\/\//, '');
 
-           // 5. Show the original long URL below the short link for reference.
-           originalUrlDisplay.textContent = data.url;
+       // 3. Show the original long URL
+       originalUrlDisplay.textContent = originalUrl;
 
-           // 6. Show the result area and hide any previous errors.
-           resultArea.style.display = 'block';
-           errorArea.style.display = 'none';
-       }
+       // 4. Show result area, hide error area
+       resultArea.style.display = 'block';
+       errorArea.style.display = 'none';
+   }
 
        function displayError(message) {
            errorMessageParagraph.textContent = message;

@@ -9,5 +9,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class RedirectResponse {
     private String alias;
-    private String url;
+    private String originalUrl;
+    private String shortUrl;
 }

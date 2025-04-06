@@ -7,28 +7,26 @@ import com.deb.service.RedirectService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.StreamUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
-
-import static org.springframework.http.HttpStatus.MOVED_PERMANENTLY;
 
 @RestController
 public class RedirectController {
 
     private static final Logger log = LoggerFactory.getLogger(RedirectController.class);
     private final RedirectService redirectService;
+
+    @Value("${app.base-url}")
+    private String appBaseUrl;
+
+    private static final String REDIRECT_PREFIX = "/r/"; // Consistent with your setup
 
     @Autowired
     public RedirectController(RedirectService redirectService) {
@@ -58,10 +56,23 @@ public class RedirectController {
         log.info("Received request to create redirect: URL={}, CustomAlias='{}'", request.getUrl(), request.getAlias());
         Redirect newRedirect = redirectService.createRedirect(request);
 
-        // Map entity to response DTO before sending back to client
-        RedirectResponse response = new RedirectResponse(newRedirect.getAlias(), newRedirect.getUrl());
+        // --- Construct the full short URL using the injected base URL ---
+        String fullShortUrl = appBaseUrl + REDIRECT_PREFIX + newRedirect.getAlias();
+        log.info("Constructed full short URL: {}", fullShortUrl);
 
-        log.info("Successfully created redirect: Alias={}, URL={}", response.getAlias(), response.getUrl());
-        return ResponseEntity.status(HttpStatus.CREATED).body(response); // Use 201 Created status
+        // The RedirectResponse DTO now only needs the alias and original URL.
+        // The frontend will display the full URL constructed here or receive it.
+        // Let's adjust the Response DTO to carry the full short URL instead.
+
+        RedirectResponse response = new RedirectResponse(
+                newRedirect.getAlias(),       // Keep the alias if needed separately
+                newRedirect.getUrl(),         // Original long URL
+                fullShortUrl                  // The complete short URL to display/copy
+        );
+
+
+        log.info("Successfully created redirect: Alias={}, URL={}, ShortURL={}",
+                response.getAlias(), response.getOriginalUrl(), response.getShortUrl());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }
