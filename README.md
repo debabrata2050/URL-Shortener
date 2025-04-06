@@ -1,12 +1,8 @@
-# 🔗 d50.in - Dynamic Cloud-Deployed URL Shortener
-
-<!-- Optional Badges - Replace with your actual badges if configured -->
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](...)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+# 🔗 d50.in | Cloud-Deployed URL Shortener
 
 🚀 A full-stack URL shortening service built with Spring Boot (Java) and deployed on AWS EC2 using Nginx as a reverse proxy and MySQL (RDS) for persistence. Convert long URLs into short, manageable aliases under the custom `d50.in` domain.
 
-🌐 **Live Demo:** [https://d50.in](https://d50.in)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-d50.in-informational?style=flat-square&logo=googlechrome)](https://d50.in)
 
 ---
 
@@ -56,9 +52,6 @@ Here's a breakdown of the technologies used across the project:
 
 ---
 
----
----
-
 ## 🏗️ Architecture Overview
 
 The application follows a standard client-server architecture enhanced by a reverse proxy:
@@ -100,62 +93,12 @@ The application follows a standard client-server architecture enhanced by a reve
 
 **Table: `redirects`**
 
-*   `id` (PK, BIGINT, Auto Increment): Unique record identifier.
-*   `alias` (UNIQUE, VARCHAR(10), Not Null): The short alias string.
-*   `url` (VARCHAR(2048), Not Null): The original long URL.
-*   `created_at` (TIMESTAMP, Not Null): Timestamp of record creation.
-
-*(Diagram Recommendation: Insert a simple ER Diagram visual here)*
-
----
-
-## 🚀 Getting Started (Local Development)
-
-Follow these steps to run the application locally:
-
-1.  **Prerequisites:**
-    *   ☕ JDK 17 or higher installed.
-    *   🐘 Maven or Gradle installed.
-    *   💾 Optional: Local MySQL server (or use the default H2 in-memory DB).
-2.  **Clone the Repository:**
-    ```bash
-    git clone https://github.com/YOUR_USERNAME/YOUR_REPOSITORY_NAME.git
-    cd YOUR_REPOSITORY_NAME
-    ```
-3.  **Configure for Local:**
-    *   Review `src/main/resources/application.properties`.
-    *   By default, it should be configured to use H2 for easy local startup.
-    *   If using local MySQL, uncomment/add MySQL properties and update credentials:
-        ```properties
-        #spring.datasource.url=jdbc:mysql://localhost:3306/your_local_db_name?useSSL=false&allowPublicKeyRetrieval=true
-        #spring.datasource.username=your_local_db_user
-        #spring.datasource.password=your_local_db_password
-        #spring.jpa.database-platform=org.hibernate.dialect.MySQLDialect
-        #spring.jpa.hibernate.ddl-auto=update
-        ```
-    *   Ensure `app.base-url` is set for local testing (e.g., `app.base-url=http://localhost:8080`).
-4.  **Build the Project:**
-    *   Using Maven: `mvn clean package`
-    *   Using Gradle: `gradle clean build`
-5.  **Run the Application:**
-    *   Using Maven: `mvn spring-boot:run`
-    *   Using Gradle: `gradle bootRun`
-    *   Or run the JAR directly: `java -jar target/your-app-name-*.jar` (adjust path if needed)
-6.  **Access:** Open your browser and navigate to `http://localhost:8080`.
-
----
-
-## ⚙️ Configuration (Environment Variables / Properties)
-
-Key properties required, especially for deployment:
-
-*   `SERVER_PORT`: Internal port Spring Boot listens on (e.g., `8080`).
-*   `APP_BASE_URL`: The public base URL used for generating short links (e.g., `https://d50.in`).
-*   `SPRING_DATASOURCE_URL`: JDBC URL for the production MySQL database on RDS.
-*   `SPRING_DATASOURCE_USERNAME`: Username for the RDS database.
-*   `SPRING_DATASOURCE_PASSWORD`: Password for the RDS database.
-*   `SERVER_FORWARD_HEADERS_STRATEGY`: Set to `framework` when behind a reverse proxy like Nginx.
-*   `SPRING_JPA_HIBERNATE_DDL_AUTO`: Controls schema generation (`validate` or `none` recommended for production).
+| Column Name     | Data Type        | Constraints                              | Description                      |
+| :-------------- | :--------------- | :--------------------------------------- | :------------------------------- |
+| `id`            | `BIGINT`         | **Primary Key**, **Auto Increment**      | Unique record identifier.        |
+| `alias`         | `VARCHAR(10)`    | **Unique**, **Not Null**                 | The short alias string.          |
+| `url`           | `VARCHAR(2048)`  | **Not Null**                             | The original long URL.           |
+| `created_at`    | `TIMESTAMP`      | **Not Null**, Defaults to Current Time | Timestamp of record creation.    |
 
 ---
 
@@ -164,7 +107,4 @@ Key properties required, especially for deployment:
 **Read more about the development process, challenges faced, and deployment details in my blog post:**
 
 ➡️ **[Link to Your Blog Post Here]** (Coming Soon!)
-
-*Briefly describe what the blog post covers, e.g., Deep dive into the Nginx configuration, Steps for setting up RDS, Lessons learned during deployment, etc.*
-
 ---
