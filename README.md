@@ -25,29 +25,38 @@
 
 ## 💻 Technology Stack
 
-*   **Backend:**
-    *   ☕ Java 17+
-    *   🌱 Spring Boot 3.x (Web, Data JPA, Validation)
-    *   💾 Hibernate (ORM)
-    *   📝 Lombok (Boilerplate Reduction)
-*   **Frontend:**
-    *   뼈 HTML5
-    *   🎨 CSS3
-    *   💡 Vanilla JavaScript (ES6+, Fetch API)
-*   **Database:**
-    *   🧪 H2 (In-Memory for Local Development/Testing)
-    *   🐬 MySQL (Production via AWS RDS)
-*   **Proxy / SSL:**
-    *   🔒 Nginx (Reverse Proxy, Load Balancing - if scaled, SSL Termination, HTTP->HTTPS Redirect)
-    *   🛡️ Let's Encrypt (via Certbot for Free SSL Certificates)
-*   **Deployment:**
-    *   ☁️ AWS EC2 (Compute Instance)
-    *   ☁️ AWS RDS (Managed MySQL Database)
-    *   ☁️ AWS Route 53 (DNS Management)
-    *   🧱 AWS Security Groups (Firewall)
-*   **Build Tool:**
-    *   🐘 Maven
+Here's a breakdown of the technologies used across the project:
 
+### ☕ Backend (Server-Side Logic)
+[![Java](https://img.shields.io/badge/Java-17+-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://www.java.com)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-6DB33F?style=flat-square&logo=spring&logoColor=white)](https://spring.io/projects/spring-boot)
+[![Hibernate](https://img.shields.io/badge/Hibernate-ORM-59666C?style=flat-square&logo=hibernate&logoColor=white)](https://hibernate.org/orm/)
+
+### ✨ Frontend (User Interface)
+[![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat-square&logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/Guide/HTML/HTML5)
+[![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat-square&logo=css3&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/CSS)
+[![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?style=flat-square&logo=javascript&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
+
+### 💾 Database & Persistence
+[![H2](https://img.shields.io/badge/H2_Database-09476B?style=flat-square&logo=h2database&logoColor=white)](https://www.mysql.com/)
+[![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white)](https://www.mysql.com/)
+[![AWS RDS](https://img.shields.io/badge/AWS%20RDS%20(MySQL)-Prod%20DB-FF9900?style=flat-square&logo=amazonrds&logoColor=white)](https://aws.amazon.com/rds/)
+<br />*(Note: H2 Database is used for local development/testing.)*
+
+### ☁️ Deployment, Networking, Proxy & Security
+[![AWS EC2](https://img.shields.io/badge/AWS%20EC2-Compute-FF9900?style=flat-square&logo=amazonec2&logoColor=white)](https://aws.amazon.com/ec2/)
+[![AWS Route53](https://img.shields.io/badge/AWS%20Route%2053-DNS-FF9900?style=flat-square&logo=amazonroute53&logoColor=white)](https://aws.amazon.com/route53/)
+[![Nginx](https://img.shields.io/badge/Nginx-Proxy-009639?style=flat-square&logo=nginx&logoColor=white)](https://nginx.org/en/)
+[![Let's Encrypt](https://img.shields.io/badge/Let's%20Encrypt-SSL-003A70?style=flat-square&logo=letsencrypt&logoColor=white)](https://letsencrypt.org/)
+
+### 🛠️ Build Tools
+[![Maven](https://img.shields.io/badge/Maven-Build-C71A36?style=flat-square&logo=apachemaven&logoColor=white)](https://maven.apache.org/)
+[![Gradle](https://img.shields.io/badge/Gradle-Build-02303A?style=flat-square&logo=gradle&logoColor=white)](https://gradle.org/)
+<br />*(Choose one or both depending on your project setup)*
+
+---
+
+---
 ---
 
 ## 🏗️ Architecture Overview
@@ -136,55 +145,6 @@ Follow these steps to run the application locally:
 
 ---
 
-## ☁️ Deployment (AWS EC2 + Nginx)
-
-This outlines the steps for the production deployment used for `d50.in`:
-
-1.  **AWS Prerequisites:**
-    *   AWS Account.
-    *   Registered Domain Name (`d50.in`) configured in Route 53.
-    *   An Elastic IP address associated with your EC2 instance.
-2.  **Provision Infrastructure:**
-    *   Launch an **EC2 instance** (e.g., Amazon Linux 2 or Ubuntu).
-    *   Create an **RDS MySQL instance**.
-3.  **Configure Security Groups:**
-    *   **EC2 SG:** Allow inbound TCP ports 22 (SSH from Your IP), 80 (HTTP from Anywhere), 443 (HTTPS from Anywhere). **Block port 8080 from Anywhere.**
-    *   **RDS SG:** Allow inbound TCP port 3306 *only* from the EC2 instance's Security Group ID.
-4.  **Install Software on EC2:**
-    *   Connect via SSH.
-    *   Install Java (e.g., `sudo amazon-linux-extras install java-openjdk17` or equivalent).
-    *   Install Nginx (e.g., `sudo amazon-linux-extras install nginx1`).
-    *   Install Certbot (e.g., `sudo yum install certbot python3-certbot-nginx`).
-5.  **Obtain SSL Certificate:**
-    *   Run `sudo certbot --nginx -d d50.in -d www.d50.in ...` (follow prompts, choose redirect option).
-6.  **Configure Nginx:**
-    *   Create/edit `/etc/nginx/conf.d/d50.conf` (see synopsis or previous answers for the full config).
-    *   Ensure it includes:
-        *   Server block for port 80 redirecting to HTTPS.
-        *   Server block for port 443 handling SSL (using Certbot paths).
-        *   `location / { proxy_pass http://127.0.0.1:8080; ... }` block within the HTTPS server.
-        *   Correct `proxy_set_header` directives (Host, X-Real-IP, X-Forwarded-For, X-Forwarded-Proto).
-    *   Test (`sudo nginx -t`) and Reload (`sudo systemctl reload nginx`).
-7.  **Configure DNS:**
-    *   In Route 53, ensure an 'A' record for `d50.in` (and `www`) points to the EC2 instance's Elastic IP.
-8.  **Package Application:**
-    *   Build the executable JAR: `mvn clean package` or `gradle clean bootJar`.
-9.  **Deploy Application:**
-    *   Copy the JAR file to the EC2 instance (e.g., using `scp`).
-10. **Configure Spring Boot (Production):**
-    *   Set **Environment Variables** before running the JAR (or use a systemd service file):
-        *   `SERVER_PORT=8080`
-        *   `APP_BASE_URL=https://d50.in`
-        *   `SPRING_DATASOURCE_URL=jdbc:mysql://<your-rds-endpoint>:3306/<your-db-name>...`
-        *   `SPRING_DATASOURCE_USERNAME=<your-rds-username>`
-        *   `SPRING_DATASOURCE_PASSWORD=<your-rds-password>`
-        *   `SERVER_FORWARD_HEADERS_STRATEGY=framework` (Crucial!)
-        *   `SPRING_JPA_HIBERNATE_DDL_AUTO=validate` (Recommended for Prod after initial setup)
-11. **Run Application:**
-    *   Start the Spring Boot JAR (e.g., `java -jar your-app.jar &` or preferably run as a systemd service for robustness).
-
----
-
 ## ⚙️ Configuration (Environment Variables / Properties)
 
 Key properties required, especially for deployment:
@@ -201,26 +161,10 @@ Key properties required, especially for deployment:
 
 ## 📝 Blog Post
 
-*(This section is a placeholder for a link to or summary of a blog post you might write about this project.)*
-
 **Read more about the development process, challenges faced, and deployment details in my blog post:**
 
 ➡️ **[Link to Your Blog Post Here]** (Coming Soon!)
 
 *Briefly describe what the blog post covers, e.g., Deep dive into the Nginx configuration, Steps for setting up RDS, Lessons learned during deployment, etc.*
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request or open an Issue for bugs, feature requests, or improvements.
-
-*(Optional: Add more specific contribution guidelines if desired)*
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details. *(Ensure you add a LICENSE.md file with the MIT License text)*
 
 ---
