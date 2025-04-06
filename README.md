@@ -6,7 +6,7 @@
 
 🚀 A full-stack URL shortening service built with Spring Boot (Java) and deployed on AWS EC2 using Nginx as a reverse proxy and MySQL (RDS) for persistence. Convert long URLs into short, manageable aliases under the custom `d50.in` domain.
 
-🌐 **Live Demo:** [https://d50.in](https://d50.in) *(Replace with your actual domain if different)*
+🌐 **Live Demo:** [https://d50.in](https://d50.in)
 
 ---
 
