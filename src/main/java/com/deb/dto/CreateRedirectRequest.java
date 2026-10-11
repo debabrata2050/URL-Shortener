@@ -13,7 +13,7 @@ public class CreateRedirectRequest {
     @Size(max = 2048, message = "URL length cannot exceed 2048 characters")
     private String url;
 
-    @Size(max = 10, message = "Custom alias cannot exceed 10 characters")
+    @Size(max = 32, message = "Custom alias cannot exceed 32 characters")
     // Alias can be blank or null if user wants a random one
     private String alias;
 }

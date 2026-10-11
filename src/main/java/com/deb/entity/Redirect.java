@@ -6,8 +6,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.NaturalId;
 import org.hibernate.validator.constraints.URL;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Size;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
 
 @Entity

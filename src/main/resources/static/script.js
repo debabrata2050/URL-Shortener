@@ -32,11 +32,23 @@ document.addEventListener('DOMContentLoaded', () => {
             resetSubmitButton();
             return;
         }
-        // Validate custom alias format (letters, numbers, hyphens only)
-        if (customAlias && !/^[a-zA-Z0-9-]*$/.test(customAlias)) {
-            displayError("Custom alias contains invalid characters. Use only letters, numbers, and hyphens.");
-            resetSubmitButton();
-            return;
+        // Validate custom alias format (2-32 chars, alphanumeric, hyphen, underscore, valid boundaries)
+        if (customAlias) {
+            if (customAlias.length < 2 || customAlias.length > 32) {
+                displayError("Custom alias must be between 2 and 32 characters.");
+                resetSubmitButton();
+                return;
+            }
+            if (!/^[a-zA-Z0-9_-]+$/.test(customAlias)) {
+                displayError("Custom alias contains invalid characters. Use only letters, numbers, hyphens, and underscores.");
+                resetSubmitButton();
+                return;
+            }
+            if (!/^[a-zA-Z0-9].*[a-zA-Z0-9]$/.test(customAlias)) {
+                displayError("Custom alias cannot start or end with a hyphen or underscore.");
+                resetSubmitButton();
+                return;
+            }
         }
 
         // --- Prepare Request Body ---
@@ -110,10 +122,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
    function displaySuccess(data) {
-       // --- Backend now provides the full short URL ---
-       // data should look like: { alias: "...", originalUrl: "...", shortUrl: "https://d50.in/r/..." }
-
-       const fullShortUrl = data.shortUrl; // Get the full URL from the response
+       // Derive full short URL from browser origin so links work across all network devices
+       const alias = data.alias || data.shortCode;
+       let fullShortUrl = data.shortUrl;
+       if (alias && window.location.origin) {
+           fullShortUrl = `${window.location.origin}/r/${alias}`;
+       } else if (fullShortUrl && (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')) {
+           fullShortUrl = fullShortUrl.replace(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/, window.location.origin);
+       }
        const originalUrl = data.originalUrl;
 
        // 1. Set the clickable link href

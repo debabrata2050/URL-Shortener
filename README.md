@@ -1,107 +1,97 @@
-# 🔗 d50.in | Cloud-Deployed URL Shortener
+# 🔗 d50.in | High-Performance URL Shortener & Click Analytics Platform
 
-🚀 A full-stack URL shortening service built with Spring Boot (Java) and deployed on AWS EC2 using Nginx as a reverse proxy and MySQL (RDS) for persistence. Convert long URLs into short, manageable aliases under the custom `d50.in` domain.
-
-[![Live Demo](https://img.shields.io/badge/Live_Demo-d50.in-informational?style=flat-square&logo=googlechrome)](https://d50.in)
+🚀 A production-grade URL shortener and async analytics platform built with **Java 25**, **Spring Boot 4.1.1**, **MySQL 9.x**, **Redis**, and **RabbitMQ**.
 
 ---
 
-## ✨ Key Features
+## ✨ Key Features & Architecture
 
-*   **🔗 URL Shortening:** Converts long, cumbersome URLs into neat short links.
-*   **✍️ Custom Aliases:** Allows users to suggest a preferred short alias (e.g., `d50.in/r/my-project`).
-*   **🎲 Random Aliases (Base62):** Generates unique, 5-character Base62 (`[0-9a-zA-Z]`) aliases automatically if no custom alias is provided.
-*   **♻️ Duplicate URL Handling:** If a long URL has already been shortened, the existing short link is returned, preventing duplicate entries.
-*   **➡️ Secure Redirection:** Uses HTTP 301 Permanent Redirects for optimal SEO and performance when redirecting from the short link (`/r/{alias}`) to the original URL.
-*   **🖥️ Simple Frontend:** A clean web interface built with HTML, CSS, and Vanilla JavaScript for easy submission of URLs.
-*   **🔒 HTTPS Enforced:** All traffic is automatically redirected to HTTPS, secured using Nginx and free SSL certificates from Let's Encrypt.
-*   **☁️ Cloud Native:** Designed and deployed on AWS infrastructure (EC2, RDS, Route 53).
+*   **➡️ HTTP 302 Found Redirection:** Replaced permanent 301 redirects with temporary HTTP 302 redirects (`no-cache` headers) so client browsers never cache redirects locally, ensuring 100% of click events hit your server for live analytics.
+*   **⚡ Two-Tier (L1/L2) Hierarchical Caching:**
+    *   **L1 (Caffeine Local RAM):** Sub-millisecond lookup ($\approx 10\text{--}50\,\mu\text{s}$) for ultra-hot links.
+    *   **L2 (Redis Distributed Cache):** $1\text{--}3\,\text{ms}$ network cache with dynamic TTL matching link expiration.
+    *   **L3 (MySQL Persistent Store):** Indexed lookup on `short_code`.
+    *   **Cache Penetration Protection:** Negative sentinel caching (60s TTL) for probing attacks on nonexistent URLs.
+    *   **Thundering Herd Mitigation:** Striped locking per key serializes concurrent database lookups.
+    *   **Redis Pub/Sub Invalidation:** Cluster-wide cache eviction across instances when links are updated.
+*   **📨 Asynchronous Analytics Pipeline (RabbitMQ):**
+    *   **Non-Blocking Redirects:** The redirect path extracts `User-Agent`, `Referer`, and client IP headers and pushes a message to RabbitMQ in $< 5\text{ms}$.
+    *   **Broker Outage Fallback:** In the event of a RabbitMQ outage, events are buffered in an in-memory bounded circular queue without failing the redirect.
+    *   **Dead-Letter Queue (DLQ):** Messages that fail processing are routed to `click.events.dlq`.
+    *   **Background Consumer:** `@RabbitListener` worker parses user agents, filters web crawlers/bots (`Googlebot`, `Bingbot`, `Slackbot`, etc.), resolves geographic location, and writes micro-batches (50 records or 500ms) to MySQL.
+*   **🎲 Pluggable Base62 Key Generation:**
+    *   **Counter-Based Range Allocator:** Thread-safe `AtomicLong` memory range allocator converted to 6-char Base62 using zero-dependency arithmetic.
+    *   **Randomized Key Generator:** Cryptographic `SecureRandom` Base62 generator with collision retries.
+    *   **Custom Vanity Slugs:** Supports custom aliases with reserved route protection (`/api`, `/admin`, `/r`, `/metrics`, `/actuator`).
+*   **🛡️ SSRF Defense & Security:**
+    *   Rejects local loopbacks (`127.0.0.1`, `::1`, `localhost`).
+    *   Rejects private RFC 1918 subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`).
+    *   Rejects cloud instance metadata service (`169.254.169.254`).
+*   **📊 Live Analytical Reporting REST APIs:**
+    *   Total clicks, unique IP visitors, bot traffic ratio.
+    *   Top 5 referrers with SQL aggregations and Java Stream percentage rankings.
+    *   Top 5 countries and cities.
+    *   Device breakdown (Mobile, Desktop, Tablet, Bot).
+*   **🧪 83 Passing Automated Tests:**
+    *   Full JUnit 5 & Mockito test suite covering boundaries, SSRF, service layers, cache behavior, broker fallback resilience, and MockMvc endpoints.
 
 ---
 
 ## 💻 Technology Stack
 
-### ☕ Backend (Server-Side Logic)
-[![Java](https://img.shields.io/badge/Java-17+-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://www.java.com)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-6DB33F?style=flat-square&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
-[![Hibernate](https://img.shields.io/badge/Hibernate-ORM-59666C?style=flat-square&logo=hibernate&logoColor=white)](https://hibernate.org/orm/)
-
-### ✨ Frontend (User Interface)
-[![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat-square&logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/Guide/HTML/HTML5)
-[![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat-square&logo=css3&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/CSS)
-[![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?style=flat-square&logo=javascript&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
-
-### 💾 Database & Persistence
-[![H2](https://img.shields.io/badge/H2_Database-09476B?style=flat-square&logo=h2database&logoColor=white)](https://www.mysql.com/)
-[![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white)](https://www.mysql.com/)
-[![AWS RDS](https://img.shields.io/badge/AWS%20RDS%20(MySQL)-Prod%20DB-527FFF?style=flat-square&logo=amazonrds&logoColor=white)](https://aws.amazon.com/rds/)
-<br />*(Note: H2 Database is used for local development/testing.)*
-
-### ☁️ Deployment, Networking, Proxy & Security
-[![AWS EC2](https://img.shields.io/badge/AWS%20EC2-Compute-FF9900?style=flat-square&logo=amazonec2&logoColor=white)](https://aws.amazon.com/ec2/)
-[![AWS Route53](https://img.shields.io/badge/AWS%20Route%2053-DNS-8C4FFF?style=flat-square&logo=amazonroute53&logoColor=white)](https://aws.amazon.com/route53/)
-[![Nginx](https://img.shields.io/badge/Nginx-Proxy-009639?style=flat-square&logo=nginx&logoColor=white)]()
-[![Let's Encrypt](https://img.shields.io/badge/Let's%20Encrypt-SSL-003A70?style=flat-square&logo=letsencrypt&logoColor=white)](https://letsencrypt.org/)
-
-### 🛠️ Build Tools
-[![Maven](https://img.shields.io/badge/Maven-Build-C71A36?style=flat-square&logo=apachemaven&logoColor=white)](https://maven.apache.org/)
-
-
----
-
-## 🏗️ Architecture Overview
-
-The application follows a standard client-server architecture enhanced by a reverse proxy:
-
-1.  **User's Browser:** Interacts with the static frontend (HTML/CSS/JS).
-2.  **Nginx (on EC2):**
-    *   Listens on ports 80 (HTTP) & 443 (HTTPS).
-    *   Redirects all HTTP traffic to HTTPS.
-    *   Terminates SSL for HTTPS traffic using Let's Encrypt certificates.
-    *   Forwards valid HTTPS requests for `/api/*` or `/r/*` to the Spring Boot application running internally on port 8080.
-    *   Adds crucial `X-Forwarded-*` headers.
-3.  **Spring Boot Application (on EC2):**
-    *   Listens internally on `localhost:8080`.
-    *   Handles API requests (`/api/shorten`) and redirection logic (`/r/{alias}`).
-    *   Interacts with the database via Spring Data JPA.
-    *   Configured to understand `X-Forwarded-*` headers.
-4.  **AWS RDS (MySQL Database):**
-    *   Stores the `alias` -> `long URL` mappings persistently.
-    *   Accessible only from the EC2 instance via internal VPC networking (secured by Security Groups).
-
-*(Diagram Recommendation: Insert a clear architecture diagram image here showing the flow: User -> Browser -> Route 53 -> EC2 (Nginx -> Spring Boot) -> RDS)*
+*   **Runtime:** Java 25 (LTS)
+*   **Framework:** Spring Boot 4.1.1 (Spring Framework 7.x, Spring Data JPA, Spring AMQP, Spring Data Redis, Spring Cache)
+*   **Database:** MySQL 9.x (`com.mysql:mysql-connector-j`) with versioned Flyway migrations (`flyway-mysql`)
+*   **Caches:** Caffeine 3.x (L1) + Redis 7.x (L2)
+*   **Message Broker:** RabbitMQ 3.13+ (Topic Exchange + DLQ)
+*   **Testing:** JUnit 5, Mockito, AssertJ, MockMvc, H2 (test scope)
+*   **Build Tool:** Apache Maven 3.9.16 via `.\mvnw.cmd`
 
 ---
 
 ## 🔌 API Endpoints
 
-| Method | Endpoint        | Request Body / Path Params           | Success Response                             | Error Response(s)                                          | Description                                      |
-| :----- | :-------------- | :----------------------------------- | :------------------------------------------- | :--------------------------------------------------------- | :----------------------------------------------- |
-| `POST` | `/api/shorten`  | JSON (`CreateRedirectRequest` DTO)   | 201 Created - JSON (`RedirectResponse` DTO)  | 400 Bad Request (Validation, Alias Exists), 503 (Alias Gen) | Creates a new short URL or returns existing one. |
-| `GET`  | `/r/{alias}`    | Path Variable: `alias` (String)      | 301 Moved Permanently (`Location` Header)  | 404 Not Found                                              | Redirects the user to the original long URL.     |
+### 1. Redirection Endpoint
+| Method | Endpoint | Description | Status Code |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/r/{shortCode}` | Resolves link and redirects client | **302 Found** (`Location` header) |
 
-**DTOs:**
-*   `CreateRedirectRequest`: `{ "url": "string (required)", "alias": "string (optional, max 10 chars, [a-zA-Z0-9-])" }`
-*   `RedirectResponse`: `{ "alias": "string", "originalUrl": "string", "shortUrl": "string (full https://d50.in/r/alias)" }`
+### 2. Link Management Endpoints
+| Method | Endpoint | Request Body | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/links` | `{"originalUrl":"...", "customSlug":"...", "expiresInDays":7}` | Creates short link |
+| `GET` | `/api/v1/links` | None | Lists all links |
+| `GET` | `/api/v1/links/{shortCode}` | None | Gets short link details |
+| `PATCH`| `/api/v1/links/{shortCode}/deactivate` | None | Deactivates short link and clears cache |
+| `PUT`  | `/api/v1/links/{shortCode}/destination` | `{"originalUrl":"..."}` | Updates target URL and evicts caches |
+| `POST` | `/api/shorten` | `{"url":"...", "alias":"..."}` | Legacy backward-compatible endpoint |
+
+### 3. Analytics Endpoints
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/analytics/links/{shortCode}/summary` | Total clicks, bot count, unique visitors, bot % |
+| `GET` | `/api/v1/analytics/links/{shortCode}/referrers?limit=5` | Top referrers with click counts and percentages |
+| `GET` | `/api/v1/analytics/links/{shortCode}/countries?limit=5` | Top countries with click counts and percentages |
+| `GET` | `/api/v1/analytics/links/{shortCode}/devices` | Breakdown by device type (Mobile/Desktop/Tablet) |
 
 ---
 
-## 🗄️ Database Schema
+## 🚀 Running Locally
 
-**Table: `redirects`**
+### 1. Run Unit Tests (In-Memory H2, No external services required)
+```powershell
+.\mvnw.cmd test
+```
 
-| Column Name     | Data Type        | Constraints                              | Description                      |
-| :-------------- | :--------------- | :--------------------------------------- | :------------------------------- |
-| `id`            | `BIGINT`         | **Primary Key**, **Auto Increment**      | Unique record identifier.        |
-| `alias`         | `VARCHAR(10)`    | **Unique**, **Not Null**                 | The short alias string.          |
-| `url`           | `VARCHAR(2048)`  | **Not Null**                             | The original long URL.           |
-| `created_at`    | `TIMESTAMP`      | **Not Null**, Defaults to Current Time | Timestamp of record creation.    |
+### 2. Start Supporting Services (Redis & RabbitMQ via Docker)
+```powershell
+docker compose up -d redis rabbitmq
+```
 
----
-
-## 📝 Blog Post
-
-**Read more about the development process, challenges faced, and deployment details in my blog post:**
-
-➡️ **[Link to Your Blog Post Here]** (Coming Soon!)
----
+### 3. Launch the Application
+Make sure local MySQL service `MySQL93` is running on port 3306:
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+Application starts on `http://localhost:8080`.
+RabbitMQ Management UI is at `http://localhost:15672` (guest / guest).

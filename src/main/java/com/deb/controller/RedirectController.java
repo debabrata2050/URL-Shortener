@@ -1,78 +1,92 @@
 package com.deb.controller;
 
-import com.deb.dto.CreateRedirectRequest;
-import com.deb.dto.RedirectResponse;
-import com.deb.entity.Redirect;
-import com.deb.service.RedirectService;
+import com.deb.analytics.model.ClickEventPayload;
+import com.deb.analytics.publisher.AnalyticsEventPublisher;
+import com.deb.cache.TwoTierCacheService;
+import com.deb.cache.model.CachedLinkDto;
+import com.deb.exception.LinkExpiredException;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RestController;
 
-import javax.validation.Valid;
 import java.net.URI;
-import java.net.URISyntaxException;
+import lombok.RequiredArgsConstructor;
+import java.time.LocalDateTime;
 
 @RestController
+@RequiredArgsConstructor
 public class RedirectController {
 
     private static final Logger log = LoggerFactory.getLogger(RedirectController.class);
-    private final RedirectService redirectService;
 
-    @Value("${app.base-url}")
-    private String appBaseUrl;
+    private final TwoTierCacheService twoTierCacheService;
+    private final AnalyticsEventPublisher analyticsEventPublisher;
 
-    private static final String REDIRECT_PREFIX = "/r/"; // Consistent with your setup
+    /**
+     * Resolves short link and issues an immediate HTTP 302 Found redirect.
+     * Extracts request headers and dispatches an asynchronous analytics event.
+     */
+    @GetMapping("/r/{shortCode}")
+    public ResponseEntity<Void> handleRedirect(@PathVariable String shortCode, HttpServletRequest request) {
+        log.info("Incoming redirect request for shortCode='{}'", shortCode);
+        CachedLinkDto link = twoTierCacheService.getResolvedLink(shortCode);
 
-    @Autowired
-    public RedirectController(RedirectService redirectService) {
-        this.redirectService = redirectService;
-    }
-
-    @GetMapping("/r/{alias}")
-    public ResponseEntity<?> handleRedirect(@PathVariable String alias) {
-        try {
-            Redirect redirect = redirectService.getRedirect(alias);
-            log.info("Redirecting alias '{}' to URL: {}", alias, redirect.getUrl());
-            URI uri = new URI(redirect.getUrl());
-            HttpHeaders httpHeaders = new HttpHeaders();
-            httpHeaders.setLocation(uri);
-            // Use 301 for permanent redirect
-            return new ResponseEntity<>(httpHeaders, HttpStatus.MOVED_PERMANENTLY);
-        } catch (URISyntaxException e) {
-            log.error("Invalid URL syntax stored for alias '{}': {}", alias, e.getMessage());
-            // This should ideally not happen if URL validation works, but good to handle
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Invalid redirect URL configured.");
+        // Check if link is deactivated or expired
+        if (Boolean.FALSE.equals(link.getIsActive()) || link.isExpired()) {
+            log.info("Redirect requested for expired or inactive shortCode: '{}'", shortCode);
+            throw new LinkExpiredException("Short link '" + shortCode + "' has expired or been deactivated.");
         }
-        // NotFoundException will be handled by the GlobalExceptionHandler
+
+        // Asynchronously dispatch lightweight analytics event
+        dispatchAnalyticsEvent(link, request);
+
+        log.debug("Redirecting shortCode '{}' to URL '{}' (HTTP 302 Found)", shortCode, link.getOriginalUrl());
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setLocation(URI.create(link.getOriginalUrl()));
+        // Enforce no-cache on redirection response to prevent browser client-side caching
+        headers.setCacheControl("no-cache, no-store, max-age=0, must-revalidate");
+        headers.setPragma("no-cache");
+
+        return new ResponseEntity<>(headers, HttpStatus.FOUND);
     }
 
-    @PostMapping("/api/shorten")
-    public ResponseEntity<RedirectResponse> createRedirect(@Valid @RequestBody CreateRedirectRequest request) {
-        log.info("Received request to create redirect: URL={}, CustomAlias='{}'", request.getUrl(), request.getAlias());
-        Redirect newRedirect = redirectService.createRedirect(request);
+    private void dispatchAnalyticsEvent(CachedLinkDto link, HttpServletRequest request) {
+        try {
+            String clientIp = extractClientIp(request);
+            String userAgent = request.getHeader("User-Agent");
+            String referer = request.getHeader("Referer");
 
-        // --- Construct the full short URL using the injected base URL ---
-        String fullShortUrl = appBaseUrl + REDIRECT_PREFIX + newRedirect.getAlias();
-        log.info("Constructed full short URL: {}", fullShortUrl);
+            ClickEventPayload payload = ClickEventPayload.builder()
+                    .linkId(link.getId())
+                    .shortCode(link.getShortCode())
+                    .clickedAt(LocalDateTime.now())
+                    .ipAddress(clientIp)
+                    .userAgent(userAgent)
+                    .referer(referer)
+                    .build();
 
-        // The RedirectResponse DTO now only needs the alias and original URL.
-        // The frontend will display the full URL constructed here or receive it.
-        // Let's adjust the Response DTO to carry the full short URL instead.
+            analyticsEventPublisher.publish(payload);
+        } catch (Exception e) {
+            log.error("Failed to enqueue click analytics event for shortCode '{}': {}", link.getShortCode(), e.getMessage());
+        }
+    }
 
-        RedirectResponse response = new RedirectResponse(
-                newRedirect.getAlias(),       // Keep the alias if needed separately
-                newRedirect.getUrl(),         // Original long URL
-                fullShortUrl                  // The complete short URL to display/copy
-        );
-
-
-        log.info("Successfully created redirect: Alias={}, URL={}, ShortURL={}",
-                response.getAlias(), response.getOriginalUrl(), response.getShortUrl());
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    private String extractClientIp(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty() && !"unknown".equalsIgnoreCase(xForwardedFor)) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isEmpty() && !"unknown".equalsIgnoreCase(realIp)) {
+            return realIp.trim();
+        }
+        return request.getRemoteAddr();
     }
 }

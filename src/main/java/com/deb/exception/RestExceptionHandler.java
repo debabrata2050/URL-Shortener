@@ -18,31 +18,65 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@ControllerAdvice // Intercept exceptions globally
+@ControllerAdvice
 public class RestExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(RestExceptionHandler.class);
 
-    // --- Handlers for specific custom exceptions ---
+    @ExceptionHandler(LinkNotFoundException.class)
+    public ResponseEntity<Object> handleLinkNotFound(LinkNotFoundException ex, WebRequest request) {
+        log.warn("Link not found: {}", ex.getMessage());
+        return buildErrorResponse(ex.getMessage(), HttpStatus.NOT_FOUND, request);
+    }
+
     @ExceptionHandler(NotFoundException.class)
-    public ResponseEntity<Object> handleNotFoundException(NotFoundException ex, WebRequest request) {
+    public ResponseEntity<Object> handleNotFound(NotFoundException ex, WebRequest request) {
         log.warn("Resource not found: {}", ex.getMessage());
-        return buildErrorResponse(ex, HttpStatus.NOT_FOUND, request);
+        return buildErrorResponse(ex.getMessage(), HttpStatus.NOT_FOUND, request);
+    }
+
+    @ExceptionHandler(LinkExpiredException.class)
+    public ResponseEntity<Object> handleLinkExpired(LinkExpiredException ex, WebRequest request) {
+        log.warn("Link expired: {}", ex.getMessage());
+        return buildErrorResponse(ex.getMessage(), HttpStatus.GONE, request);
+    }
+
+    @ExceptionHandler(SlugAlreadyExistsException.class)
+    public ResponseEntity<Object> handleSlugAlreadyExists(SlugAlreadyExistsException ex, WebRequest request) {
+        log.warn("Slug conflict: {}", ex.getMessage());
+        return buildErrorResponse(ex.getMessage(), HttpStatus.CONFLICT, request);
+    }
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<Object> handleDataIntegrityViolation(org.springframework.dao.DataIntegrityViolationException ex, WebRequest request) {
+        log.warn("Database constraint conflict: {}", ex.getMessage());
+        return buildErrorResponse("Slug or resource already in use. Please choose a different slug.", HttpStatus.CONFLICT, request);
+    }
+
+    @ExceptionHandler(InvalidDestinationUrlException.class)
+    public ResponseEntity<Object> handleInvalidUrl(InvalidDestinationUrlException ex, WebRequest request) {
+        log.warn("Invalid URL: {}", ex.getMessage());
+        return buildErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST, request);
+    }
+
+    @ExceptionHandler(ReservedSlugException.class)
+    public ResponseEntity<Object> handleReservedSlug(ReservedSlugException ex, WebRequest request) {
+        log.warn("Reserved slug error: {}", ex.getMessage());
+        return buildErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST, request);
     }
 
     @ExceptionHandler(BadRequestException.class)
-    public ResponseEntity<Object> handleBadRequestException(BadRequestException ex, WebRequest request) {
+    public ResponseEntity<Object> handleBadRequest(BadRequestException ex, WebRequest request) {
         log.warn("Bad request: {}", ex.getMessage());
-        return buildErrorResponse(ex, HttpStatus.BAD_REQUEST, request);
+        return buildErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST, request);
     }
 
     @ExceptionHandler(AliasGenerationException.class)
-    public ResponseEntity<Object> handleAliasGenerationException(AliasGenerationException ex, WebRequest request) {
+    public ResponseEntity<Object> handleAliasGeneration(AliasGenerationException ex, WebRequest request) {
         log.error("Alias generation failed: {}", ex.getMessage());
-        return buildErrorResponse(ex, HttpStatus.SERVICE_UNAVAILABLE, request);
+        return buildErrorResponse(ex.getMessage(), HttpStatus.SERVICE_UNAVAILABLE, request);
     }
 
-    // --- Override default handler for @Valid validation errors ---
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
             MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
@@ -50,58 +84,32 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("timestamp", LocalDateTime.now());
         body.put("status", status.value());
-        body.put("error", status instanceof HttpStatus ? ((HttpStatus)status).getReasonPhrase() : "Validation Error"); // Get standard reason phrase
+        body.put("error", status instanceof HttpStatus ? ((HttpStatus) status).getReasonPhrase() : "Validation Error");
 
-        // Get field-specific errors
         Map<String, String> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
                 .collect(Collectors.toMap(FieldError::getField,
                         fieldError -> fieldError.getDefaultMessage() != null ? fieldError.getDefaultMessage() : "Invalid value",
-                        (existing, replacement) -> existing) // Handle potential duplicate field errors if needed
-                );
-        body.put("message", "Validation failed. Check field errors."); // General message
-        body.put("fieldErrors", fieldErrors); // Detailed field errors
+                        (existing, replacement) -> existing));
+        body.put("message", "Validation failed for request parameters");
+        body.put("fieldErrors", fieldErrors);
         body.put("path", request.getDescription(false).replace("uri=", ""));
 
-        log.warn("Validation failed for request path {}: {}", body.get("path"), fieldErrors);
-        // Use the status determined by Spring (usually 400 Bad Request)
         return new ResponseEntity<>(body, headers, status);
     }
 
-    // --- Handle generic exceptions (catch-all) - map to 500 Internal Server Error ---
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleGenericException(Exception ex, WebRequest request) {
-        // Log stack trace for unexpected errors for debugging
-        log.error("An unexpected error occurred processing request [{}]: {}", request.getDescription(false), ex.getMessage(), ex);
-        String message = "An unexpected internal error occurred. Please try again later or contact support.";
-        return buildErrorResponse(ex, message, HttpStatus.INTERNAL_SERVER_ERROR, request);
+        log.error("Unhandled error processing request [{}]: {}", request.getDescription(false), ex.getMessage(), ex);
+        return buildErrorResponse("An unexpected internal error occurred.", HttpStatus.INTERNAL_SERVER_ERROR, request);
     }
 
-
-    // --- Helper methods to build consistent error response body ---
-
-    /**
-     * Builds a standardized error response entity using the exception's message.
-     */
-    private ResponseEntity<Object> buildErrorResponse(Exception ex, HttpStatus status, WebRequest request) {
-        return buildErrorResponse(ex, ex.getMessage(), status, request);
-    }
-
-    /**
-     * Builds a standardized error response entity with a custom message.
-     */
-    private ResponseEntity<Object> buildErrorResponse(Exception ex, String message, HttpStatus status, WebRequest request) {
+    private ResponseEntity<Object> buildErrorResponse(String message, HttpStatus status, WebRequest request) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("timestamp", LocalDateTime.now());
         body.put("status", status.value());
-        body.put("error", status.getReasonPhrase()); // e.g., "Not Found", "Bad Request"
-        body.put("message", message); // Specific error message
-        body.put("path", request.getDescription(false).replace("uri=", "")); // The requested path
-
-        // Optionally add exception class name for non-production environments
-        // if (isDevelopmentEnvironment()) { // Implement this check based on active profile etc.
-        //    body.put("exception", ex.getClass().getName());
-        // }
-
+        body.put("error", status.getReasonPhrase());
+        body.put("message", message);
+        body.put("path", request.getDescription(false).replace("uri=", ""));
         return new ResponseEntity<>(body, status);
     }
 }
